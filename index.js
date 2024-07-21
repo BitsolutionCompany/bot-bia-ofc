@@ -58,7 +58,7 @@ client.on('message', async (message) => {
                 contact.ped++
             }else if(contact.choice === 1 && contact.ped === 1){
                 contact.nome.push({tipo: 'nome', valor: body})
-                client.sendMessage(from, 'Informe o Código do produto, a quantidade e o nome do produto \n_*Exe.: 4309, 1, Bom Doutor Gel Sebo de Carneiro*_\n_Em caso de Kit, coloque os produtos separadamente._\n_Envie um produto por vez, como mostra o exemplo!_\nPara Cancelar, digite *"Cancelar"*')
+                client.sendMessage(from, 'Informe o Código do produto, a quantidade e o nome do produto \n\n_*Exe.: 4309, 1, Bom Doutor Gel Sebo de Carneiro*_\n\n_Em caso de Kit, coloque os produtos separadamente._\n_Envie um produto por vez, como mostra o exemplo!_\n\nPara Cancelar, digite *"Cancelar"*')
                 contact.ped++
             }else if(contact.choice === 1 && contact.ped === 2){
                 if(body.toLocaleLowerCase() === 'finalizar'){
@@ -66,6 +66,8 @@ client.on('message', async (message) => {
                 }else if(body.toLocaleLowerCase() === 'cancelar'){
                     contact.state++
                     contact.ped = 0
+                    contact.nome = []
+                    contact.pedido = []
                 }else{
                     const info = body.split(', ')
                     contact.pedido.push({cod: info[0], quant: info[1], nome: info[2]})
