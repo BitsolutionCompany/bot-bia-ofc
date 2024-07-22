@@ -1,5 +1,7 @@
 import Whatsapp from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
+import db from './Conexao.js';
+import insertQuery from "./Queries.js";
 
 const { Client, LocalAuth} = Whatsapp
 
@@ -58,7 +60,7 @@ client.on('message', async (message) => {
                 contact.ped++
             }else if(contact.choice === 1 && contact.ped === 1){
                 contact.nome.push({tipo: 'nome', valor: body})
-                client.sendMessage(from, 'Informe o Código do produto, a quantidade e o nome do produto \n\n_*Exe.: 4309, 1, Bom Doutor Gel Sebo de Carneiro*_\n\n_Em caso de Kit, coloque os produtos separadamente._\n_Envie um produto por vez, como mostra o exemplo!_\n\nPara Cancelar, digite *"Cancelar"*')
+                client.sendMessage(from, 'Informe o Código do produto, a quantidade e o nome do produto \n_*Exe.: 4309, 1, Bom Doutor Gel Sebo de Carneiro*_\n_Em caso de Kit, coloque os produtos separadamente._\n_Envie um produto por vez, como mostra o exemplo!_\nPara Cancelar, digite *"Cancelar"*')
                 contact.ped++
             }else if(contact.choice === 1 && contact.ped === 2){
                 if(body.toLocaleLowerCase() === 'finalizar'){
@@ -79,6 +81,8 @@ client.on('message', async (message) => {
                     client.sendMessage(from, `Pedido:\nNome: ${contact.nome.find(item => item.tipo === 'nome').valor}\n${pedidoDetails}`)
                     contact.state++
                     contact.ped = 0
+                    contact.pedido = []
+                    contact.nome = []
                 }
             }else if(contact.choice === 2 && contact.cad === 0){
                 message.reply('Vamos Começar Seu Cadastro!\n*Informe Seu Nome Completo:*')
@@ -117,31 +121,81 @@ client.on('message', async (message) => {
                 contact.cad++
             }else if(contact.choice === 2 && contact.cad === 9){
                 contact.endereco.push({ tipo: 'estado', valor: body });
-                message.reply(`*Logradouro(Rua/Sitio, Numero, Complemento):*`)
+                message.reply(`*Logradouro(Rua/Sitio):*`)
                 contact.cad++
             }else if(contact.choice === 2 && contact.cad === 10){
                 contact.endereco.push({ tipo: 'logradouro', valor: body });
-                message.reply(`*Bairro:*`)
+                message.reply(`*Número:*`)
                 contact.cad++
             }else if(contact.choice === 2 && contact.cad === 11){
+                contact.endereco.push({ tipo: 'numero', valor: body });
+                message.reply(`*Complemento:*`)
+                contact.cad++
+            }else if(contact.choice === 2 && contact.cad === 12){
+                contact.endereco.push({ tipo: 'complemento', valor: body });
+                message.reply(`*Bairro:*`)
+                contact.cad++
+            }else if(contact.choice === 2 && contact.cad === 13){
                 contact.endereco.push({ tipo: 'bairro', valor: body });
                 message.reply(`*Ponto de Referência:*`)
                 contact.cad++
-            }else if(contact.choice === 2 && contact.cad === 12){
+            }else if(contact.choice === 2 && contact.cad === 14){
                 contact.endereco.push({ tipo: 'pontRef', valor: body });
                 message.reply(`*Tipo de Residência(casa ou trabalho):*`)
                 contact.cad++
-            }else if(contact.choice === 2 && contact.cad === 13){
+            }else if(contact.choice === 2 && contact.cad === 15){
                 contact.endereco.push({ tipo: 'tipoRes', valor: body });
-                client.sendMessage(from, 'Cadastro Finalizado')
-                contact.cad++
+                const query = insertQuery(
+                    contact.registro.find(item => item.tipo === 'nome').valor,
+                    contact.registro.find(item => item.tipo === 'cpf').valor,
+                    contact.registro.find(item => item.tipo === 'nomeMae').valor,
+                    contact.registro.find(item => item.tipo === 'nomePai').valor,
+                    contact.registro.find(item => item.tipo === 'rg').valor,
+                    contact.registro.find(item => item.tipo === 'email').valor,
+                    contact.endereco.find(item => item.tipo === 'cep').valor,
+                    contact.endereco.find(item => item.tipo === 'cidade').valor,
+                    contact.endereco.find(item => item.tipo === 'estado').valor,
+                    contact.endereco.find(item => item.tipo === 'logradouro').valor,
+                    contact.endereco.find(item => item.tipo === 'numero').valor,
+                    contact.endereco.find(item => item.tipo === 'complemento').valor,
+                    contact.endereco.find(item => item.tipo === 'bairro').valor,
+                    contact.endereco.find(item => item.tipo === 'pontRef').valor,
+                    contact.endereco.find(item => item.tipo === 'tipoRes').valor
+                );
+                db.query(query, [contact.registro.find(item => item.tipo === 'nome').valor,
+                    contact.registro.find(item => item.tipo === 'cpf').valor,
+                    contact.registro.find(item => item.tipo === 'nomeMae').valor,
+                    contact.registro.find(item => item.tipo === 'nomePai').valor,
+                    contact.registro.find(item => item.tipo === 'rg').valor,
+                    contact.registro.find(item => item.tipo === 'email').valor,
+                    contact.endereco.find(item => item.tipo === 'cep').valor,
+                    contact.endereco.find(item => item.tipo === 'cidade').valor,
+                    contact.endereco.find(item => item.tipo === 'estado').valor,
+                    contact.endereco.find(item => item.tipo === 'logradouro').valor,
+                    contact.endereco.find(item => item.tipo === 'numero').valor,
+                    contact.endereco.find(item => item.tipo === 'complemento').valor,
+                    contact.endereco.find(item => item.tipo === 'bairro').valor,
+                    contact.endereco.find(item => item.tipo === 'pontRef').valor,
+                    contact.endereco.find(item => item.tipo === 'tipoRes').valor], (err, results) => {
+                    if (err) {
+                      console.error('Erro ao cadastrar informações do cliente', err);
+                      contact.state++
+                      client.sendMessage(from, 'Ops, Ocorreu um Erro ao Tentar Realizar o Cadastro')
+                    }else{
+                        console.log('Informações do cliente cadastradas com sucesso!');
+                        client.sendMessage(from, 'Cadastro Finalizado')
+                        contact.cad++
+                    }
+                  });
             }
-            if(contact.choice === 2 && contact.cad === 14){
+            if(contact.choice === 2 && contact.cad === 16){
                 setTimeout(() => {
-                    client.sendMessage(from, `_Dados do Cliente_\n*Nome: ${contact.registro.find(item => item.tipo === 'nome').valor}*\n*CPF: ${contact.registro.find(item => item.tipo === 'cpf').valor}*\n*Nome da Mãe: ${contact.registro.find(item => item.tipo === 'nomeMae').valor}*\n*Nome do Pai: ${contact.registro.find(item => item.tipo === 'nomePai').valor}*\n*RG: ${contact.registro.find(item => item.tipo === 'rg').valor}*\n*Email: ${contact.registro.find(item => item.tipo === 'email').valor}*\n_Endereço_\n*CEP: ${contact.endereco.find(item => item.tipo === 'cep').valor}*\n*Cidade: ${contact.endereco.find(item => item.tipo === 'cidade').valor}*\n*Estado: ${contact.endereco.find(item => item.tipo === 'estado').valor}*\n*Logradouro: ${contact.endereco.find(item => item.tipo === 'logradouro').valor}*\n*Bairro: ${contact.endereco.find(item => item.tipo === 'bairro').valor}*\n*Ponto de Referência: ${contact.endereco.find(item => item.tipo === 'pontRef').valor}*\n*Tipo Residência: ${contact.endereco.find(item => item.tipo === 'tipoRes').valor}*`)
+                    client.sendMessage(from, `_Dados do Cliente_\n*Nome: ${contact.registro.find(item => item.tipo === 'nome').valor}*\n*CPF: ${contact.registro.find(item => item.tipo === 'cpf').valor}*\n*Nome da Mãe: ${contact.registro.find(item => item.tipo === 'nomeMae').valor}*\n*Nome do Pai: ${contact.registro.find(item => item.tipo === 'nomePai').valor}*\n*RG: ${contact.registro.find(item => item.tipo === 'rg').valor}*\n*Email: ${contact.registro.find(item => item.tipo === 'email').valor}*\n_Endereço_\n*CEP: ${contact.endereco.find(item => item.tipo === 'cep').valor}*\n*Cidade: ${contact.endereco.find(item => item.tipo === 'cidade').valor}*\n*Estado: ${contact.endereco.find(item => item.tipo === 'estado').valor}*\n*Logradouro: ${contact.endereco.find(item => item.tipo === 'logradouro').valor}*\n*Número: ${contact.endereco.find(item => item.tipo === 'numero').valor}*\n*Complemento: ${contact.endereco.find(item => item.tipo === 'complemento').valor}*\n*Bairro: ${contact.endereco.find(item => item.tipo === 'bairro').valor}*\n*Ponto de Referência: ${contact.endereco.find(item => item.tipo === 'pontRef').valor}*\n*Tipo Residência: ${contact.endereco.find(item => item.tipo === 'tipoRes').valor}*`)
                 }, 1000);
                 contact.state++
                 contact.cad = 0
+                contact.endereco = []
+                contact.registro = []
             }
         }
         if(contact.state === 3){
