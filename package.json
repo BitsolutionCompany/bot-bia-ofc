@@ -1,6 +1,7 @@
 {
   "type": "module",
   "dependencies": {
+    "mysql": "^2.18.1",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#webpack-exodus"
   },
