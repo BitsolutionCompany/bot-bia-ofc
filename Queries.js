@@ -34,3 +34,27 @@ export function insertPedido(codePed, pedido) {
 export const UpdateEstoque = (newEstoque, sku) => {
   return 'UPDATE tb_produtos set estoque = ? WHERE codigo_sku = ?'
 }
+
+export const updateNomeCons = (nome, cpf) => {
+  return 'UPDATE tb_consultora set nome = ? WHERE cpf = ?'
+}
+
+export const updateNomeMaeCons = (nomeM, cpf) => {
+  return 'UPDATE tb_consultora set nomeMae = ? WHERE cpf = ?'
+}
+
+export const updateNomePaiCons = (nomeP, cpf) => {
+  return 'UPDATE tb_consultora set nomePai = ? WHERE cpf = ?'
+}
+
+export const updateEmailCons = (email, cpf) => {
+  return 'UPDATE tb_consultora set email = ? WHERE cpf = ?'
+}
+
+export const updatePhoneCons = (phone, cpf) => {
+  return 'UPDATE tb_consultora set phone = ? WHERE cpf = ?'
+}
+
+export const updateAdressCons = (cep, cidade, estado, logradouro, num, complemento, bairro, pontoRef, tipoRes, cpf) => {
+  return 'UPDATE tb_consultora set phone = ?, cep = ?, cidade = ?, estado = ?, logradouro = ?, num = ?, complemento = ?, bairro = ?, pontoRef = ?, tipoRes = ? WHERE cpf = ?'
+}

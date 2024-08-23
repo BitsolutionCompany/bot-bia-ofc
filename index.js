@@ -1,7 +1,7 @@
 import Whatsapp from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import db from './Conexao.js';
-import { insertQuery, buscaCad, buscaProd, insertPedidoUser, insertPedido, UpdateEstoque } from "./Queries.js";
+import { insertQuery, buscaCad, buscaProd, insertPedidoUser, insertPedido, UpdateEstoque, updateNomeCons, updateNomeMaeCons, updateNomePaiCons, updateEmailCons, updatePhoneCons, updateAdressCons } from "./Queries.js";
 import validateCPF from "./validaCPF.js";
 
 const { Client, LocalAuth} = Whatsapp
@@ -33,7 +33,7 @@ client.on('message', async (message) => {
         if (from !== '558894086642@c.us')
         return;
 
-        const contact = (contacts[from] || (contacts[from] = { state: 0, cad: 0, ped: 0, registro: [], endereco: [], pedido: [], nome: "" }));
+        const contact = (contacts[from] || (contacts[from] = { state: 0, cad: 0, ped: 0, registro: [], endereco: [], pedido: [], nome: "", update: 0, passo: 0}));
         console.log(from)
         console.log(body)
         console.log(contact)
@@ -42,10 +42,10 @@ client.on('message', async (message) => {
         console.log(contact.codeU)
         console.log(contact.codePed)
         if(contact.state === 0){
-            client.sendMessage(from, 'Olá, sou a Bia, *Assistente Virtual da Bia Cosmético*. Em que posso ajuda?\n Escolha uma opção:\n1. Pedido\n2. Cadastro\n3. Como Ser Um(a) Consultor(a)\n0. Encerrar\n_Informe o número da opção_');
+            client.sendMessage(from, 'Olá, sou a Bia, *Assistente Virtual da Bia Cosmético*. Em que posso ajuda?\n Escolha uma opção:\n1. Pedido\n2. Cadastro\n3. Como Ser Um(a) Consultor(a)\n4. Atualização de Dados\n0. Encerrar\n_Informe o número da opção_');
             contact.state++
         }else if(contact.state === 1){
-            if (isNaN(body) || body < 0 || body > 3){
+            if (isNaN(body) || body < 0 || body > 4){
                 return client.sendMessage(from, 'Oops, opção inválida');
             }else{
                 contact.choice = +body
@@ -394,15 +394,393 @@ client.on('message', async (message) => {
                     client.sendMessage(from, 'Para ativar seu cadastro, é necessário fazer um pedido mínimo de R$ 300,00, escolhendo qualquer produto do nosso catálogo. Se preferir, temos kits iniciais com produtos selecionados, que são os mais vendidos na sua região ou cidade. Esses kits estão disponíveis nos valores de R$ 300,00, R$ 500,00 e R$ 1000,00, incluindo maquiagens, perfumes, skincare, cuidados para os pés, esmaltes, entre outros.\nVocê pode lucrar até 50%, dependendo do preço de revenda. Utilize o preço sugerido na revista ou defina o seu próprio preço!')
                 }, 2000);
                 contact.state++
+            }else if(contact.choice === 4){
+                if(contact.update === 0){
+                    client.sendMessage(from, '*Informe seu CPF:*\n_Somente Números_')
+                    contact.update++
+                }else if(contact.update === 1){
+                    const cpf = body;
+                    const validaCPF = validateCPF(cpf)
+                    contact.cpf = cpf
+                    
+                    if (validaCPF) {
+                        console.log('Válido');
+                        const busca = buscaCad(cpf)
+
+                        db.query(busca, [cpf], (err, results) => {
+                            if(err){
+                                console.error('Erro ao executar consulta:', err);
+                            }else{
+                                console.log('Existe');
+                                if (results.length > 0) {
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update++
+                                }else{
+                                // Inicia o cadastro do usuário, caso ele não esteja cadastrado no banco de dados
+                                console.log('Não Existe');
+                                function generateCode(){
+                                    return Math.floor(Math.random() * (99999999 - 10000000 + 1)) + 10000000
+                                }
+                                contact.registro.push({ tipo: 'code', valor: generateCode()})
+                                contact.codeU = contact.registro.find(item => item.tipo === 'code').valor;
+                                const phone = from.split('@')[0]
+                                contact.registro.push({ tipo: 'phone', valor: phone})
+                                contact.registro.push({ tipo: 'cpf', valor: body })
+                                message.reply(`*PNão encontrei o seu cadastro!*\n*_Vamos Realizar seu cadastro_*`)
+                                setTimeout(() => {
+                                    client.sendMessage(from, '*Informe Seu Nome Completo:*')
+                                }, 2000);
+                                contact.cad = 2
+                                contact.ped = 0
+                                contact.choice = 2
+                                }
+                            }
+                        })
+                        
+                    }else{
+                        console.log('Não Válido');
+                        message.reply('*Informe um CPF válido: *')
+                    }
+                }else if(contact.update === 2){
+                    if(isNaN(body) || body < 0 || body > 6){
+                        return client.sendMessage(from, 'Oops, opção inválida');
+                    }else{
+                        contact.select = +body
+                        contact.update++
+                    }
+                }
+                if(contact.update === 3){
+                    if(contact.select === 0){
+                        contact.state++
+                        contact.update = 0
+                        contact.passo = 0
+                        contact.choice = 0
+                        contact.dado = ''
+                        contact.cpf = ''
+                    }else if(contact.select === 1){
+                        if(contact.passo === 0){
+                            message.reply('Informe Seu Nome Completo: ')
+                            contact.passo++
+                        }else if(contact.passo === 1){
+                            contact.dado = body
+                            const newInfo = contact.dado
+                            message.reply(`Nome: ${newInfo}\n*Confirma Alteração?*\n1. Sim\n2. Não\n\n_Informe o número da opção_`)
+                            contact.passo++
+                        }else if(contact.passo === 2){
+                            if(isNaN(body) || body < 1 || body > 2){
+                                return client.sendMessage(from, 'Oops, opção inválida');
+                            }else{
+                                const option = +body
+                                if(option === 1){
+                                    const nome = contact.dado
+                                    const cpf = contact.cpf
+                                    const nameUpdate = updateNomeCons(nome, cpf)
+
+                                    db.query(nameUpdate, [nome, cpf], (err, results) => {
+                                        if(err){
+                                            console.log('Erro ao efetuar consulta', err);
+                                            client.message(from, 'Tivemos um erro ao tentar atualizar')
+                                            setTimeout(() => {
+                                                client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                            }, 2000);
+                                            contact.update = 2
+                                            contact.passo = 0
+                                        }else{
+                                            console.log('Nome Atualizado com Sucesso');
+                                            client.sendMessage(from, "Alteração Concluída!")
+                                            setTimeout(() => {
+                                                client.sendMessage(from, 'Deseja Atualizar Mais Alguma Informação?\n\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar')
+                                            }, 2000);
+                                            contact.passo = 0
+                                            contact.update = 2
+                                        }
+                                    })
+                                }else if(option === 2){
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update = 2
+                                    contact.passo = 0
+                                }
+                            }
+                        }
+                    }else if(contact.select === 2){
+                        if(contact.passo === 0){
+                            message.reply('Informe o Nome da Mãe: ')
+                            contact.passo++
+                        }else if(contact.passo === 1){
+                            contact.dado = body
+                            const newInfo = contact.dado
+                            message.reply(`Nome da Mãe: ${newInfo}\n*Confirma Alteração?*\n1. Sim\n2. Não\n\n_Informe o número da opção_`)
+                            contact.passo++
+                        }else if(contact.passo === 2){
+                            if(isNaN(body) || body < 1 || body > 2){
+                                return client.sendMessage(from, 'Oops, opção inválida');
+                            }else{
+                                const option = +body
+                                if(option === 1){
+                                    const nomeM = contact.dado
+                                    const cpf = contact.cpf
+                                    const nameUpdate = updateNomeMaeCons(nomeM, cpf)
+
+                                    db.query(nameUpdate, [nomeM, cpf], (err, results) => {
+                                        if(err){
+                                            console.log('Erro ao efetuar consulta', err);
+                                            client.message(from, 'Tivemos um erro ao tentar atualizar')
+                                            setTimeout(() => {
+                                                client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                            }, 2000);
+                                            contact.update = 2
+                                            contact.passo = 0
+                                        }else{
+                                            console.log('Nome da Mae Atualizado com Sucesso');
+                                            client.sendMessage(from, "Alteração Concluída!")
+                                            setTimeout(() => {
+                                                client.sendMessage(from, 'Deseja Atualizar Mais Alguma Informação?\n\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar')
+                                            }, 2000);
+                                            contact.passo = 0
+                                            contact.update = 2
+                                        }
+                                    })
+                                }else if(option === 2){
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update = 2
+                                    contact.passo = 0
+                                }
+                            }
+                        }
+                    }else if(contact.select === 3){
+                        if(contact.passo === 0){
+                            message.reply('Informe o Nome do Pai: ')
+                            contact.passo++
+                        }else if(contact.passo === 1){
+                            contact.dado = body
+                            const newInfo = contact.dado
+                            message.reply(`Nome do Pai: ${newInfo}\n*Confirma Alteração?*\n1. Sim\n2. Não\n\n_Informe o número da opção_`)
+                            contact.passo++
+                        }else if(contact.passo === 2){
+                            if(isNaN(body) || body < 1 || body > 2){
+                                return client.sendMessage(from, 'Oops, opção inválida');
+                            }else{
+                                const option = +body
+                                if(option === 1){
+                                    const nomeP = contact.dado
+                                    const cpf = contact.cpf
+                                    const nameUpdate = updateNomePaiCons(nomeP, cpf)
+
+                                    db.query(nameUpdate, [nomeP, cpf], (err, results) => {
+                                        if(err){
+                                            console.log('Erro ao efetuar consulta', err);
+                                            client.message(from, 'Tivemos um erro ao tentar atualizar')
+                                            setTimeout(() => {
+                                                client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                            }, 2000);
+                                            contact.update = 2
+                                            contact.passo = 0
+                                        }else{
+                                            console.log('Nome do Pai Atualizado com Sucesso');
+                                            client.sendMessage(from, "Alteração Concluída!")
+                                            setTimeout(() => {
+                                                client.sendMessage(from, 'Deseja Atualizar Mais Alguma Informação?\n\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar')
+                                            }, 2000);
+                                            contact.passo = 0
+                                            contact.update = 2
+                                        }
+                                    })
+                                }else if(option === 2){
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update = 2
+                                    contact.passo = 0
+                                }
+                            }
+                        }
+                    }else if(contact.select === 4){
+                        if(contact.passo === 0){
+                            message.reply('Informe seu novo Email: ')
+                            contact.passo++
+                        }else if(contact.passo === 1){
+                            contact.dado = body
+                            const newInfo = contact.dado
+                            message.reply(`Novo Email: ${newInfo}\n*Confirma Alteração?*\n1. Sim\n2. Não\n\n_Informe o número da opção_`)
+                            contact.passo++
+                        }else if(contact.passo === 2){
+                            if(isNaN(body) || body < 1 || body > 2){
+                                return client.sendMessage(from, 'Oops, opção inválida');
+                            }else{
+                                const option = +body
+                                if(option === 1){
+                                    const email = contact.dado
+                                    const cpf = contact.cpf
+                                    const emailUpdate = updateEmailCons(email, cpf)
+
+                                    db.query(emailUpdate, [email, cpf], (err, results) => {
+                                        if(err){
+                                            console.log('Erro ao efetuar consulta', err);
+                                            client.message(from, 'Tivemos um erro ao tentar atualizar')
+                                            setTimeout(() => {
+                                                client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                            }, 2000);
+                                            contact.update = 2
+                                            contact.passo = 0
+                                        }else{
+                                            console.log('Email Atualizado com Sucesso');
+                                            client.sendMessage(from, "Alteração Concluída!")
+                                            setTimeout(() => {
+                                                client.sendMessage(from, 'Deseja Atualizar Mais Alguma Informação?\n\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar')
+                                            }, 2000);
+                                            contact.passo = 0
+                                            contact.update = 2
+                                        }
+                                    })
+                                }else if(option === 2){
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update = 2
+                                    contact.passo = 0
+                                }
+                            }
+                        }
+                    }else if(contact.select === 5){
+                        if(contact.passo === 0){
+                            client.sendMessage(from, 'Seu número será atualizado pelo telefone atual do Whatsapp!')
+                            contact.passo++
+                        }
+                        if(contact.passo === 1){
+                            const number = from.split('@')[0]
+                            setTimeout(() => {
+                                message.reply(`Novo Número: ${number}\n*Confirma Alteração?*\n1. Sim\n2. Não\n\n_Informe o número da opção_`)
+                            }, 1000);
+                            contact.passo++
+                        }else if(contact.passo === 2){
+                            if(isNaN(body) || body < 1 || body > 2){
+                                return client.sendMessage(from, 'Oops, opção inválida');
+                            }else{
+                                const option = +body
+                                if(option === 1){
+                                    const number = from.split('@')[0]
+                                    const cpf = contact.cpf
+
+                                    const alterNumber = updatePhoneCons(number, cpf)
+
+                                    db.query(alterNumber, [number, cpf], (err, results) => {
+                                        if(err){
+                                            console.log("Erro ao tentar atualizar o número! ", err);
+                                            client.message(from, 'Tivemos um erro ao tentar atualizar')
+                                            setTimeout(() => {
+                                                client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                            }, 2000);
+                                            contact.update = 2
+                                            contact.passo = 0
+                                        }else{
+                                            console.log('Telefone Atualizado com Sucesso');
+                                            client.sendMessage(from, "Alteração Concluída!")
+                                            setTimeout(() => {
+                                                client.sendMessage(from, 'Deseja Atualizar Mais Alguma Informação?\n\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar')
+                                            }, 2000);
+                                            contact.passo = 0
+                                            contact.update = 2
+                                        }
+                                    })
+                                }else if(option === 2){
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update = 2
+                                    contact.passo = 0
+                                }
+                            }
+                        }
+                    }else if(contact.select === 6){
+                        if(contact.passo === 0){
+                            client.sendMessage(from, "*CEP:*\n_Somente Números_")
+                            contact.passo++
+                        }else if(contact.passo === 1){
+                            contact.endereco.push({tipo: 'cep', valor: body})
+                            message.reply('*Cidade:*')
+                            contact.passo++
+                        }else if(contact.passo === 2){
+                            contact.endereco.push({tipo: 'cidade', valor: body})
+                            message.reply('*Estado:*')
+                            contact.passo++
+                        }else if(contact.passo === 3){
+                            contact.endereco.push({tipo: 'estado', valor: body})
+                            message.reply('*Logradouro(rua, sitio, entre outros):*')
+                            contact.passo++
+                        }else if(contact.passo === 4){
+                            contact.endereco.push({tipo: 'logradouro', valor: body})
+                            message.reply('*Número:*\n_Digite *S/N* caso não tenha número_')
+                            contact.passo++
+                        }else if(contact.passo === 5){
+                            contact.endereco.push({tipo: 'num', valor: body})
+                            message.reply('*Complemento:*\n_Digite *Sem Complemento* caso não tenha complemento_')
+                            contact.passo++
+                        }else if(contact.passo === 6){
+                            contact.endereco.push({tipo: 'complemento', valor: body})
+                            message.reply('*Bairro:*')
+                            contact.passo++
+                        }else if(contact.passo === 7){
+                            contact.endereco.push({tipo: 'bairro', valor: body})
+                            message.reply('*Ponto de Referência:*')
+                            contact.passo++
+                        }else if(contact.passo === 8){
+                            contact.endereco.push({tipo: 'pontoRef', valor: body})
+                            message.reply('*Tipo de Residência(casa ou trabalho):*')
+                            contact.passo++
+                        }else if(contact.passo === 9){
+                            contact.endereco.push({tipo: 'tipoRes', valor: body})
+                            client.sendMessage(from, `*CEP:* ${contact.endereco.find(item => item.tipo === 'cep').valor}\n*Cidade:* ${contact.endereco.find(item => item.tipo === 'cidade').valor}\n*Estado:* ${contact.endereco.find(item => item.tipo === 'estado').valor}\n*Logradouro:* ${contact.endereco.find(item => item.tipo === 'logradouro').valor}\n*Número:* ${contact.endereco.find(item => item.tipo === 'num').valor}\n*Complemento:* ${contact.endereco.find(item => item.tipo === 'complemento').valor}\n*Bairro:* ${contact.endereco.find(item => item.tipo === 'bairro').valor}\n*Ponto de Referência:* ${contact.endereco.find(item => item.tipo === 'pontoRef').valor}\n*Tipo de Residência:* ${contact.endereco.find(item => item.tipo === 'tipoRes').valor}\n\n*Confirma Alteração?*\n1. Sim\n2. Não\n\n_Informe o número da opção_`)
+                            contact.passo++
+                        }else if(contact.passo === 10){
+                            if(isNaN(body) || body < 1 || body > 2){
+                                return client.sendMessage(from, 'Oops, opção inválida');
+                            }else{
+                                const option = +body
+                                if(option === 1){
+                                    const cep = contact.endereco.find(item => item.tipo === 'cep').valor
+                                    const cidade = contact.endereco.find(item => item.tipo === 'cidade').valor
+                                    const estado = contact.endereco.find(item => item.tipo === 'estado').valor
+                                    const logradouro = contact.endereco.find(item => item.tipo === 'logradouro').valor
+                                    const num = contact.endereco.find(item => item.tipo === 'num').valor
+                                    const complemento = contact.endereco.find(item => item.tipo === 'complemento').valor
+                                    const bairro = contact.endereco.find(item => item.tipo === 'bairro').valor
+                                    const pontoRef = contact.endereco.find(item => item.tipo === 'pontoRef').valor
+                                    const tipoRes = contact.endereco.find(item => item.tipo === 'tipoRes').valor
+                                    const cpf = contact.cpf
+
+                                    const adress = updateAdressCons(cep, cidade, estado, logradouro, num, complemento, bairro, pontoRef, tipoRes, cpf)
+
+                                    db.query(adress, [cep, cidade, estado, logradouro, num, complemento, bairro, pontoRef, tipoRes, cpf], (err, results) => {
+                                        if(err){
+                                            console.error('Erro ao tentar atualizar endereço!', err);
+                                            client.sendMessage('Tivemos Um Erro ao Tentar Atualizar!')
+                                            setTimeout(() => {
+                                                client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                            }, 2000);
+                                            contact.update = 2
+                                            contact.passo = 0
+                                        }else{
+                                            console.log('Endereço Atualizado com Sucesso');
+                                            client.sendMessage(from, "Alteração Concluída!")
+                                            setTimeout(() => {
+                                                client.sendMessage(from, 'Deseja Atualizar Mais Alguma Informação?\n\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar')
+                                            }, 2000);
+                                            contact.passo = 0
+                                            contact.update = 2
+                                        }
+                                    })
+                                }else if(option === 2){
+                                    client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
+                                    contact.update = 2
+                                    contact.passo = 0
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         if(contact.state === 3){
             setTimeout(() => {
-                client.sendMessage(from, '*Podemos Ajudar em mais alguma coisa?*\nEscolha uma Opção:\n1. Pedido\n2. Cadastro\n3. Como Ser Um(a) Consultor(a)\n0. Encerrar')
+                client.sendMessage(from, '*Podemos Ajudar em mais alguma coisa?*\nEscolha uma Opção:\n1. Pedido\n2. Cadastro\n3. Como Ser Um(a) Consultor(a)\n4. Atualização de Dados\n0. Encerrar\n_Informe o número da opção_')
             }, 3000);
             contact.state++
         }else if(contact.state === 4){
-            if (isNaN(body) || body < 0 || body > 3){
+            if (isNaN(body) || body < 0 || body > 4){
                 return client.sendMessage(from, 'Oops, opção inválida');
             }else{
                 contact.choice = +body
@@ -434,9 +812,13 @@ client.on('message', async (message) => {
                         client.sendMessage(from, 'Para ativar seu cadastro, é necessário fazer um pedido mínimo de R$ 300,00, escolhendo qualquer produto do nosso catálogo. Se preferir, temos kits iniciais com produtos selecionados, que são os mais vendidos na sua região ou cidade. Esses kits estão disponíveis nos valores de R$ 300,00, R$ 500,00 e R$ 1000,00, incluindo maquiagens, perfumes, skincare, cuidados para os pés, esmaltes, entre outros.\nVocê pode lucrar até 50%, dependendo do preço de revenda. Utilize o preço sugerido na revista ou defina o seu próprio preço!')
                     }, 2000);
                     setTimeout(() => {
-                        client.sendMessage(from, '*Podemos Ajudar em mais alguma coisa?*\nEscolha uma Opção:\n1. Pedido\n2. Cadastro\n3. Como Ser Um(a) Consultor(a)\n0. Encerrar')
+                        client.sendMessage(from, '*Podemos Ajudar em mais alguma coisa?*\nEscolha uma Opção:\n1. Pedido\n2. Cadastro\n3. Como Ser Um(a) Consultor(a)\n4. Atualização de Dados\n0. Encerrar\n_Informe o número da opção_')
                     }, 3000);
                     contact.state = 2;
+                }else if(contact.choice === 4){
+                    client.sendMessage(from, '*Informe seu CPF:*\n_Somente Números_')
+                    contact.update = 1
+                    contact.state = 2
                 }else{
                     contact.state = 2;
                 }
@@ -450,6 +832,7 @@ client.on('message', async (message) => {
         console.log(contact.endereco)
         console.log(contact.codeU)
         console.log(contact.codePed)
+        console.log(contact.passo)
     }
 })
 
