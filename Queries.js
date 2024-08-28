@@ -56,5 +56,5 @@ export const updatePhoneCons = (phone, cpf) => {
 }
 
 export const updateAdressCons = (cep, cidade, estado, logradouro, num, complemento, bairro, pontoRef, tipoRes, cpf) => {
-  return 'UPDATE tb_consultora set phone = ?, cep = ?, cidade = ?, estado = ?, logradouro = ?, num = ?, complemento = ?, bairro = ?, pontoRef = ?, tipoRes = ? WHERE cpf = ?'
+  return 'UPDATE tb_consultora set cep = ?, cidade = ?, estado = ?, logradouro = ?, num = ?, complemento = ?, bairro = ?, pontoRef = ?, tipoRes = ? WHERE cpf = ?'
 }

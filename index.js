@@ -426,7 +426,7 @@ client.on('message', async (message) => {
                                 const phone = from.split('@')[0]
                                 contact.registro.push({ tipo: 'phone', valor: phone})
                                 contact.registro.push({ tipo: 'cpf', valor: body })
-                                message.reply(`*PNão encontrei o seu cadastro!*\n*_Vamos Realizar seu cadastro_*`)
+                                message.reply(`*Não encontrei o seu cadastro!*\n*_Vamos Realizar seu cadastro_*`)
                                 setTimeout(() => {
                                     client.sendMessage(from, '*Informe Seu Nome Completo:*')
                                 }, 2000);
@@ -439,7 +439,7 @@ client.on('message', async (message) => {
                         
                     }else{
                         console.log('Não Válido');
-                        message.reply('*Informe um CPF válido: *')
+                        message.reply('*Informe um CPF válido:*')
                     }
                 }else if(contact.update === 2){
                     if(isNaN(body) || body < 0 || body > 6){
@@ -761,12 +761,14 @@ client.on('message', async (message) => {
                                             }, 2000);
                                             contact.passo = 0
                                             contact.update = 2
+                                            contact.endereco = []
                                         }
                                     })
                                 }else if(option === 2){
                                     client.sendMessage(from, "*Qual Informação Você Quer Alterar?*\n_Selecione Uma Opção_\n1. Nome\n2. Nome da Mãe\n3. Nome do Pai\n4. Email\n5. Telefone\n6. Endereço\n0. Cancelar")
                                     contact.update = 2
                                     contact.passo = 0
+                                    contact.endereco = []
                                 }
                             }
                         }
